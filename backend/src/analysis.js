@@ -127,8 +127,17 @@ export async function analyzeWithGemini({ code, language, apiKey, model }) {
     if (response.status === 429 || (response.status === 403 && /quota|rate.?limit|resource.?exhausted/i.test(errorText))) {
       throw httpError(429, 'AI_QUOTA_EXHAUSTED', 'The AI provider quota or rate limit has been reached. Wait for the quota to reset or configure an eligible plan, then retry.')
     }
-    if (response.status === 400 || response.status === 403) {
-      throw httpError(503, 'AI_CONFIGURATION_ERROR', 'The AI provider rejected this request. Verify the backend AI model and API configuration.')
+    if (response.status === 401 || response.status === 403) {
+      throw httpError(503, 'AI_CREDENTIALS_ERROR', 'Gemini rejected the backend API key. Check that GEMINI_API_KEY in Render is valid, active, and enabled for the Gemini API.')
+    }
+    if (response.status === 404) {
+      throw httpError(503, 'AI_MODEL_ERROR', 'Gemini could not find the configured model. Check GEMINI_MODEL in Render and redeploy the backend.')
+    }
+    if (response.status === 400) {
+      throw httpError(503, 'AI_CONFIGURATION_ERROR', 'Gemini rejected the request. Check the configured model and API access in Render.')
+    }
+    if (response.status >= 500) {
+      throw httpError(502, 'AI_UNAVAILABLE', 'Gemini is temporarily unavailable. Please retry later.')
     }
     throw httpError(502, 'AI_UNAVAILABLE', 'The analysis service is temporarily unavailable. Please retry.')
   }

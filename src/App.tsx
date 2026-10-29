@@ -521,7 +521,7 @@ function formatDate(value: string) {
 }
 
 function AuthPage() {
-  const { configured, ready, user, signIn, signUp } = useAuth()
+  const { configured, ready, authError, user, signIn, signUp } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const query = new URLSearchParams(location.search)
@@ -550,7 +550,7 @@ function AuthPage() {
       } else {
         const hasSession = await signUp(email, password)
         if (hasSession) navigate(returnTo, { replace: true })
-        else setMessage('Check your email for a confirmation link, then return here to sign in.')
+        else setMessage('Check your email and open the confirmation link in this same browser. You will be signed in after confirmation.')
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Authentication could not be completed.')
@@ -566,7 +566,8 @@ function AuthPage() {
       <div className="eyebrow">YOUR PRIVATE WORKSPACE</div>
       <h1>{mode === 'sign-in' ? 'Welcome back.' : 'Create your account.'}</h1>
       <p className="auth-description">Sign in to analyze code and access your private review history.</p>
-      {!configured && <div className="error-banner"><Info size={15} />Supabase authentication is not configured. Add the frontend Supabase URL and publishable key to enable sign-in.</div>}
+      {!configured && <div className="error-banner"><Info size={15} />Supabase sign-in is disabled because this frontend build is missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. Set both in Vercel Project Settings &gt; Environment Variables, then redeploy. Use the base Supabase Project URL (no /rest/v1/) and the publishable/anon key.</div>}
+      {authError && !error && <div className="error-banner"><AlertTriangle size={15} />{authError}</div>}
       {error && <div className="error-banner"><AlertTriangle size={15} />{error}</div>}
       {message && <div className="demo-notice"><Info size={15} />{message}</div>}
       <form className="auth-form" onSubmit={submit}>

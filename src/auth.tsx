@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { createClient, type Session, type SupabaseClient, type User } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim()
+  .replace(/\/rest\/v1\/?$/i, '')
+  .replace(/\/+$/, '')
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim()
 const supabase: SupabaseClient | null = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey, {
@@ -12,6 +14,7 @@ const supabase: SupabaseClient | null = supabaseUrl && supabaseAnonKey
 interface AuthContextValue {
   configured: boolean
   ready: boolean
+  authError: string | null
   session: Session | null
   user: User | null
   signIn: (email: string, password: string) => Promise<void>
@@ -23,6 +26,7 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
+  const [authError, setAuthError] = useState<string | null>(null)
   const [ready, setReady] = useState(!supabase)
 
   useEffect(() => {
@@ -30,16 +34,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let active = true
     supabase.auth.getSession().then(({ data, error }) => {
       if (!active) return
-      if (error) console.error('Could not restore the Supabase session', error.message)
+      if (error) {
+        console.error('Could not restore the Supabase session', error.message)
+        setAuthError(authMessage(error.message))
+      }
       setSession(data.session)
       setReady(true)
     }).catch((error: unknown) => {
       if (!active) return
       console.error('Could not restore the Supabase session', error)
+      setAuthError('Could not complete the sign-in link. Open it in the same browser where you signed up, or request a new confirmation email.')
       setReady(true)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession)
+      if (nextSession) setAuthError(null)
       setReady(true)
     })
     return () => {
@@ -51,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AuthContextValue>(() => ({
     configured: Boolean(supabase),
     ready,
+    authError,
     session,
     user: session?.user ?? null,
     async signIn(email, password) {
@@ -73,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signOut()
       if (error) throw new Error(authMessage(error.message))
     },
-  }), [ready, session])
+  }), [authError, ready, session])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
@@ -92,5 +102,7 @@ function authMessage(message: string) {
   if (/invalid login credentials/i.test(message)) return 'Email or password is incorrect.'
   if (/email not confirmed/i.test(message)) return 'Confirm your email address before signing in.'
   if (/password should be at least/i.test(message)) return 'Choose a password with at least 6 characters.'
+  if (/code verifier|flow state|code challenge|pkce/i.test(message)) return 'This confirmation link must be opened in the same browser where you signed up. Request a new confirmation email if needed.'
+  if (/expired|invalid.*token|token.*invalid/i.test(message)) return 'This confirmation link is invalid or expired. Request a new confirmation email.'
   return message
 }

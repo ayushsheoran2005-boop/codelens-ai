@@ -35,6 +35,9 @@ export async function analyzeRepository(repositoryUrl: string, language: string,
 
 async function apiRequest<T>(path: string, token: string, init: RequestInit = {}): Promise<T> {
   if (!apiBaseUrl) throw new Error('The CodeLens API is not configured. Set VITE_API_BASE_URL and rebuild the frontend.')
+  if (/your[-_ ]?(?:render[-_ ]?)?service|placeholder/i.test(apiBaseUrl)) {
+    throw new Error('VITE_API_BASE_URL is still the example placeholder. Deploy the backend to Render, copy its service URL, set it in Vercel, and redeploy the frontend.')
+  }
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), apiTimeoutMs)
   try {

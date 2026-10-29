@@ -83,6 +83,8 @@ The Render Blueprint [`render.yaml`](./render.yaml) creates the web service from
 4. Configure email confirmation and password/security policies as appropriate for the application.
 5. Use the project's publishable/anon key in the frontend and backend. This application does not need or use the service-role key.
 
+Email confirmation links use Supabase PKCE, so open the link in the same browser where you signed up. If confirmation redirects to an error, verify the exact `/auth` URL for the active domain is in Supabase's redirect allowlist.
+
 The API authenticates every `/api/*` request with Supabase Auth and uses the caller's JWT for Postgres requests. The schema enables and forces row-level security; users can select, insert, and delete only rows where `user_id = auth.uid()`. Do not disable RLS or grant `anon` access to review rows. Existing local-demo review data is not migrated.
 
 ## Gemini setup

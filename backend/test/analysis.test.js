@@ -35,7 +35,7 @@ test('reports Gemini quota exhaustion as a clear retryable error', async (contex
     assert.equal(init.headers['x-goog-api-key'], 'backend-only')
     return new Response(JSON.stringify({
       error: { message: 'Resource exhausted: quota exceeded' },
-    }), { status: 429, headers: { 'content-type': 'application/json' } })
+    }), { status: 403, headers: { 'content-type': 'application/json' } })
   }
   context.after(() => { globalThis.fetch = originalFetch })
 
@@ -43,4 +43,17 @@ test('reports Gemini quota exhaustion as a clear retryable error', async (contex
     analyzeWithGemini({ code: 'print(1)', language: 'Python', apiKey: 'backend-only', model: 'gemini-test' }),
     { status: 429, code: 'AI_QUOTA_EXHAUSTED' },
   )
+})
+
+test('reports Gemini credential and model configuration errors clearly', async (context) => {
+  const originalFetch = globalThis.fetch
+  context.after(() => { globalThis.fetch = originalFetch })
+
+  for (const [status, code] of [[401, 'AI_CREDENTIALS_ERROR'], [403, 'AI_CREDENTIALS_ERROR'], [404, 'AI_MODEL_ERROR']]) {
+    globalThis.fetch = async () => new Response('{}', { status })
+    await assert.rejects(
+      analyzeWithGemini({ code: 'print(1)', language: 'Python', apiKey: 'backend-only', model: 'gemini-test' }),
+      { status: 503, code },
+    )
+  }
 })
